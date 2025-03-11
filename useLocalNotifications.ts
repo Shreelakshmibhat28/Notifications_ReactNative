@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
+import { useRouter } from 'expo-router';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -12,6 +13,8 @@ Notifications.setNotificationHandler({
 
 export const useLocalNotifications = () => {
   const [notification, setNotification] = useState<Notifications.Notification | undefined>();
+  const [notificationResponse, setNotificationResponse] = useState<Notifications.NotificationResponse | undefined>();
+  const router = useRouter();
 
   useEffect(() => {
     async function configureNotifications() {
@@ -32,21 +35,27 @@ export const useLocalNotifications = () => {
         console.log("Notification channel created."); 
       }
 
-      Notifications.addNotificationReceivedListener((notification) => {
+      const notificationListener = Notifications.addNotificationReceivedListener((notification) => {
         console.log("Notification received:", notification); 
         setNotification(notification);
       });
+
+      const responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
+        console.log("Notification response received:", response);
+        setNotificationResponse(response);
+        router.push({
+          pathname: '/NotificationDetails',
+          params: { notificationResponse: JSON.stringify(response) }
+        });
+      });
+
+      return () => {
+        Notifications.removeNotificationSubscription(notificationListener);
+        Notifications.removeNotificationSubscription(responseListener);
+      };
     }
 
     configureNotifications();
-
-    return () => {
-      Notifications.removeNotificationSubscription(
-        Notifications.addNotificationReceivedListener((notification) => {
-          setNotification(notification);
-        })
-      );
-    };
   }, []);
 
   const scheduleNotification = async () => {
@@ -54,15 +63,10 @@ export const useLocalNotifications = () => {
       const res = await Notifications.scheduleNotificationAsync({
         content: {
           title: "Local Notification",
-          body: "This is a local notification!",
-          data: { data: "goes here" },
+          body: "Hello shree!!",
+          data: { Data: "goes here" },
         },
         trigger: null,
-        //trigger: {
-          //type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-         // repeats: false,
-         //seconds:5,
-        //},
       });
       console.log("Notification scheduled successfully.", res); 
     } catch (error) {
@@ -70,5 +74,5 @@ export const useLocalNotifications = () => {
     }
   };
 
-  return { notification, scheduleNotification };
+  return { notification, notificationResponse, scheduleNotification };
 };
